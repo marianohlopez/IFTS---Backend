@@ -1,0 +1,12 @@
+html
+  head
+    title Product List
+  body
+    h1 Product List
+    each product in products
+      p= product.name + ' - Stock: ' + product.stock + ' - Precio: ' + product.price
+    form(action='/products/add' method='post')
+      input(type='text' name='name' placeholder='Nombre de producto')
+      input(type='number' name='stock' placeholder='Stock')
+      <input type="number" name="price" placeholder="Precio" step="0.01" min="0">
+      button(type='submit') Add Product

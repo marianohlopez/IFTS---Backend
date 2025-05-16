@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "name": "cucha",
+    "stock": 15,
+    "price": 20541.2
+  },
+  {
+    "id": 2,
+    "name": "collar de perlas",
+    "stock": 25,
+    "price": 10450.55
+  }
+]
