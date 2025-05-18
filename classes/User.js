@@ -9,7 +9,7 @@ class User {
     this.loggedIn = loggedIn;
   }
 
-  async get() {
+  static async get() {
     try {
       const data = await readFile(userPath, 'utf-8');
       return JSON.parse(data);
@@ -19,7 +19,7 @@ class User {
     }
   }
 
-  async save(user) {
+  static async save(user) {
     try {
       await writeFile(userPath, JSON.stringify(user, null, 2));
     } catch (err) {

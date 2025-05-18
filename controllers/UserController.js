@@ -5,16 +5,27 @@ import User from '../classes/User.js';
 export const loginUser = async (req, res) => {
   try {
     const { username, password } = req.body;
-    const userModel = new User();
-    const user = await userModel.get();
+    const user = await User.get();
     if (user && user.username === username && user.password === password) {
       user.loggedIn = true;
-      await userModel.save(user);
+      await User.save(user);
       res.redirect('/products');
     } else {
       res.send('Login Failed');
     }
   } catch (err) {
     res.status(500).send('Error during login');
+  }
+};
+
+export const logOut = async (req, res) => {
+  try {
+    const user = await User.get();
+    if (user && user.loggedIn)
+      user.loggedIn = false;
+    await User.save(user);
+    res.redirect('/');
+  } catch (err) {
+    res.status(500).send('Error during logging out');
   }
 };

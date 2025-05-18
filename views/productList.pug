@@ -1,8 +1,12 @@
 html
   head
-    title Product List
+    title Lista de productos
   body
     h1 Lista de productos
+
+    form(action='/logout' method='post')
+      button(type='submit') Cerrar sesión
+
     each product in products
       p= product.name + ' - Stock: ' + product.stock + ' - Precio: ' + product.price
     form(action='/products/add' method='post')
