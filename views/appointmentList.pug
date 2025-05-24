@@ -1,0 +1,214 @@
+// views/addAppointmentForm.pug
+doctype html
+html
+  head
+    title Agendar Nuevo Turno
+    style.
+      body { font-family: sans-serif; margin: 20px; }
+      div { margin-bottom: 10px; }
+      label { display: block; margin-bottom: 5px; font-weight: bold; }
+      input[type="text"], input[type="number"], input[type="date"], select, textarea {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      .pet-selection {
+        border: 1px solid #eee;
+        padding: 15px;
+        background-color: #f9f9f9;
+      }
+      #petSearchResults {
+        border: 1px solid #ddd;
+        max-height: 150px;
+        overflow-y: auto;
+        margin-top: 5px;
+        background-color: white;
+      }
+      #petSearchResults div {
+        padding: 8px;
+        cursor: pointer;
+      }
+      #petSearchResults div:hover {
+        background-color: #e9e9e9;
+      }
+      #selectedPetInfo {
+        margin-top: 10px;
+        padding: 10px;
+        border: 1px solid #cce;
+        background-color: #eef;
+        font-weight: bold;
+      }
+      .error-message {
+        color: red;
+        font-size: 0.9em;
+        margin-top: 5px;
+      }
+
+  body
+    h1 Agendar Nuevo Turno
+
+    form(action='/logout' method='post')
+      button(type='submit') Cerrar sesión
+
+    hr
+
+    h2 Datos del Turno
+    form(action='/appointments' method='post' id='appointmentForm')
+      .pet-selection
+        h3 Seleccionar Mascota
+        div
+          input(type='text' id='petSearchName' placeholder='Nombre de la mascota' autocomplete='off')
+        div
+          input(type='text' id='petSearchOwnerLastName' placeholder='Apellido del dueño' autocomplete='off')
+        
+        #petSearchResults
+
+        // Campo oculto para enviar el ID de la mascota seleccionada
+        input(type='hidden' name='petId' id='selectedPetId' required)
+        
+        #selectedPetInfo(style='display: none;')
+          p Mascota Seleccionada: 
+            span#selectedPetName
+            | (Dueño: 
+            span#selectedOwnerLastName
+            |)
+
+      div
+        label(for='serviceType') Tipo de Servicio:
+        select(name='serviceType' id='serviceType' required)
+          option(value='') -- Seleccione un servicio --
+          option(value='Veterinaria') Veterinaria
+          option(value='Peluqueria') Peluqueria
+
+      div
+        label(for='appointmentDate') Fecha del Turno:
+        input(type='date' name='appointmentDate' id='appointmentDate' value=initialDate required)
+        
+        div
+          label(for='appointmentTime') Hora del Turno:
+          select(name='dateTime' id='appointmentTime' required)
+            option(value='') -- Seleccione una hora --
+            // Los slots se cargarán aquí dinámicamente con JavaScript
+
+      div
+        label(for='details') Detalles (máx. 300 caracteres):
+        textarea(name='details' id='details' placeholder='Agregar comentarios sobre el turno...' maxlength='300' rows='4' style='width:100%;')
+      
+      div
+        button(type='submit') Agendar Turno
+
+    script.
+
+      const petSearchNameInput = document.getElementById('petSearchName');
+      const petSearchOwnerLastNameInput = document.getElementById('petSearchOwnerLastName');
+      const petSearchResultsDiv = document.getElementById('petSearchResults');
+      const selectedPetIdInput = document.getElementById('selectedPetId');
+      const selectedPetInfoDiv = document.getElementById('selectedPetInfo');
+      const selectedPetNameSpan = document.getElementById('selectedPetName');
+      const selectedOwnerLastNameSpan = document.getElementById('selectedOwnerLastName');
+      const appointmentDateInput = document.getElementById('appointmentDate');
+      const appointmentTimeSelect = document.getElementById('appointmentTime');
+      const appointmentForm = document.getElementById('appointmentForm');
+
+      let searchTimeout;
+
+      const searchPets = async () => {
+          const name = petSearchNameInput.value.trim();
+          const ownerLastName = petSearchOwnerLastNameInput.value.trim();
+
+          if (name.length === 0 && ownerLastName.length === 0) {
+              petSearchResultsDiv.innerHTML = '';
+              return;
+          }
+
+          try {
+              const response = await fetch(`/appointments/search-pets?name=${name}&ownerLastName=${ownerLastName}`);
+              const pets = await response.json();
+              
+              petSearchResultsDiv.innerHTML = ''; 
+              if (pets.length > 0) {
+                  pets.forEach(pet => {
+                      const div = document.createElement('div');
+                      div.textContent = `${pet.name} (${pet.ownerLastName}) - ${pet.species} - ${pet.breed}`;
+                      div.dataset.petId = pet.id;
+                      div.dataset.petName = pet.name;
+                      div.dataset.ownerLastName = pet.ownerLastName;
+                      div.addEventListener('click', () => selectPet(pet));
+                      petSearchResultsDiv.appendChild(div);
+                  });
+              } else {
+                  petSearchResultsDiv.innerHTML = '<div style="color: gray;">No se encontraron mascotas.</div>';
+              }
+          } catch (error) {
+              console.error('Error al buscar mascotas:', error);
+              petSearchResultsDiv.innerHTML = '<div class="error-message">Error al buscar mascotas.</div>';
+          }
+      };
+
+      const selectPet = (pet) => {
+          selectedPetIdInput.value = pet.id;
+          selectedPetNameSpan.textContent = pet.name;
+          selectedOwnerLastNameSpan.textContent = pet.ownerLastName;
+          selectedPetInfoDiv.style.display = 'block'; 
+          petSearchResultsDiv.innerHTML = ''; 
+          
+          petSearchNameInput.value = '';
+          petSearchOwnerLastNameInput.value = '';
+      };
+
+      petSearchNameInput.addEventListener('input', () => {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(searchPets, 300);
+      });
+      petSearchOwnerLastNameInput.addEventListener('input', () => {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(searchPets, 300);
+      });
+
+      const loadTimeSlots = async () => {
+          const selectedDate = appointmentDateInput.value;
+          appointmentTimeSelect.innerHTML = '<option value="">-- Cargando horas --</option>';
+          selectedPetIdInput.value = ''; 
+          selectedPetInfoDiv.style.display = 'none';
+
+          if (!selectedDate) {
+              appointmentTimeSelect.innerHTML = '<option value="">-- Seleccione una fecha --</option>';
+              return;
+          }
+
+          try {
+              const response = await fetch(`/appointments/available-slots?date=${selectedDate}`);
+              const data = await response.json();
+              
+              appointmentTimeSelect.innerHTML = ''; 
+              appointmentTimeSelect.add(new Option('-- Seleccione una hora --', ''));
+
+              if (data.availableSlots && data.availableSlots.length > 0) {
+                  data.availableSlots.forEach(slot => {
+                      const dateObj = new Date(slot);
+                      const timeString = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+                      appointmentTimeSelect.add(new Option(timeString, slot));
+                  });
+              } else {
+                  appointmentTimeSelect.add(new Option(data.message || 'No hay horas disponibles para esta fecha.', '', true, true));
+              }
+          } catch (error) {
+              console.error('Error al cargar slots de tiempo:', error);
+              appointmentTimeSelect.innerHTML = '<option value="">Error al cargar horas</option>';
+          }
+      };
+
+      appointmentDateInput.addEventListener('change', loadTimeSlots);
+
+      appointmentForm.addEventListener('submit', (event) => {
+          if (!selectedPetIdInput.value) {
+              alert('Por favor, busque y seleccione una mascota de la lista.');
+              event.preventDefault(); 
+          }
+          if (!appointmentTimeSelect.value) {
+              alert('Por favor, seleccione una hora para el turno.');
+              event.preventDefault();
+          }
+      });
+
+      document.addEventListener('DOMContentLoaded', loadTimeSlots);

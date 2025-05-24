@@ -3,6 +3,7 @@ import { loginRouter } from "./routes/loginRoutes.js";
 import { productRouter } from "./routes/productRoutes.js";
 import { petRouter } from "./routes/petRoutes.js";
 import { isLoggedIn } from "./middlewares/auth.js";
+import { appointmentRouter } from "./routes/appointmentRoutes.js";
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.set('view engine', 'pug');
 app.use('/', loginRouter);
 app.use('/products', isLoggedIn, productRouter);
 app.use('/pets', isLoggedIn, petRouter);
+app.use('/appointments', isLoggedIn, appointmentRouter);
 
 
 app.listen(3000, () => console.log('Server running on http://localhost:3000'));
