@@ -1,0 +1,64 @@
+doctype html
+html
+  head
+    title Lista de Mascotas
+  body
+    h1 Gestión de Mascotas
+
+    form(action='/logout' method='post')
+      button(type='submit') Cerrar sesión
+
+      h2 Registrar Nueva Mascota
+    form(action='/pets/add' method='post')
+      div
+        input(type='text' name='name' placeholder='Nombre Mascota' required)
+      div
+        input(type='text' name='ownerLastName' placeholder='Apellido Dueño' required)
+      div
+        input(type='text' name='species' placeholder='Especie (ej. Perro, Gato)' required)
+      div
+        input(type='text' name='breed' placeholder='Raza' required)
+      div
+        input(type='number' name='weight' placeholder='Peso (kg)' step='0.1' min='0' required)
+      div
+        input(type='number' name='age' placeholder='Edad (años)' min='0' required)
+      div
+        textarea(name='clinicalNotes' placeholder='Notas Clínicas (máx. 1500 caracteres)' maxlength='1500' rows='5' style='width:100%;')
+      div
+        button(type='submit') Registrar Mascota
+
+    h2 Listado de Mascotas
+    if pets && pets.length
+      each pet in pets
+        div(style='border: 1px solid #ccc; padding: 10px; margin-bottom: 10px;')
+          p
+            strong ID: 
+            span= pet.id
+          p
+            strong Nombre: 
+            span= pet.name
+          p
+            strong Dueño (Apellido): 
+            span= pet.ownerLastName
+          p
+            strong Especie: 
+            span= pet.species
+          p
+            strong Raza: 
+            span= pet.breed
+          p
+            strong Peso: 
+            span= pet.weight + ' kg'
+          p
+            strong Edad: 
+            span= pet.age + ' años' 
+          p
+            strong Notas Clínicas:
+            br
+            span(style='white-space: pre-wrap;')= pet.clinicalNotes
+    else
+      p No hay mascotas registradas aún.
+
+    hr
+
+    

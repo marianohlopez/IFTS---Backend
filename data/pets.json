@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "name": "Simba",
+    "ownerLastName": "Pisano",
+    "species": "Perro",
+    "breed": "Caniche",
+    "weight": 5,
+    "age": 10,
+    "clinicalNotes": "Vacunas al día."
+  },
+  {
+    "id": 2,
+    "name": "Caos",
+    "ownerLastName": "Gorosito",
+    "species": "Gato",
+    "breed": "Siames",
+    "weight": 4,
+    "age": 2,
+    "clinicalNotes": "Castrado"
+  },
+  {
+    "id": 3,
+    "name": "Selva",
+    "ownerLastName": "Pisano",
+    "species": "Perro",
+    "breed": "Gran Danes",
+    "weight": 45,
+    "age": 11,
+    "clinicalNotes": "-"
+  },
+  {
+    "id": 4,
+    "name": "Fer",
+    "ownerLastName": "nandito",
+    "species": "Marmota",
+    "breed": "desconocida ",
+    "weight": 70,
+    "age": 50,
+    "clinicalNotes": "Es Maricón"
+  }
+]
