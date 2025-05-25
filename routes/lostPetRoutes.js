@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { listLostPets, addLostPet, updateLostPet, deleteLostPet } from "../controllers/LostPetController";
+import { listLostPets, addLostPet, updateLostPet, deleteLostPet } from "../controllers/LostPetController.js";
 
 const router = Router();
 
