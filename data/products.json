@@ -22,5 +22,11 @@
     "name": "Comida para gatos",
     "price": 800.99,
     "stock": 20
+  },
+  {
+    "id": 5,
+    "name": "Comida para perros",
+    "stock": 20,
+    "price": 800
   }
 ]
