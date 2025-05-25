@@ -1,5 +1,5 @@
 {
   "username": "admin",
   "password": "password",
-  "loggedIn": true
+  "loggedIn": false
 }
