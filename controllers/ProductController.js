@@ -1,12 +1,10 @@
-import Product from '../classes/Product.js';
-
-const productModel = new Product();
+import Product from '../models/Products.js';
 
 // Funcion para listar productos
 
 export const listProducts = async (req, res) => {
   try {
-    const products = await productModel.getAll();
+    const products = await Product.find({});
     res.render('productList', { products });
   } catch (err) {
     res.status(500).send('Error fetching products');
@@ -17,12 +15,8 @@ export const listProducts = async (req, res) => {
 
 export const addProduct = async (req, res) => {
   try {
-    const products = await productModel.getAll();
-    const { name, stock, price } = req.body;
-    const id = products.length ? products[products.length - 1].id + 1 : 1;
-    const newProduct = new Product(id, name, parseInt(stock), parseFloat(price));
-    products.push(newProduct);
-    await productModel.save(products);
+    const products = new Product(req.body)
+    await products.save();
     res.redirect('/products');
   } catch (err) {
     res.status(500).send('Error adding product');
@@ -34,17 +28,21 @@ export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, price, stock } = req.body;
-    const products = await productModel.getAll();
-    const productIndex = products.findIndex(p => p.id === parseInt(id));
 
-    if (productIndex === -1) {
+    const updatedProduct = await Product.findByIdAndUpdate(
+      { _id: id },
+      { name, price, stock },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedProduct) {
       return res.status(404).json({ message: 'Producto no encontrado' });
     }
 
-    // Actualizar el producto
-    products[productIndex] = { ...products[productIndex], name, price, stock };
-    await productModel.save(products);
-    res.json({ message: 'Producto actualizado', product: products[productIndex] });
+    res.json({
+      message: 'Producto actualizado correctamente',
+      product: updatedProduct
+    });
   } catch (err) {
     console.log(`Error: ${err}`)
     res.status(500).json({ message: 'Error al actualizar el producto' });
@@ -54,17 +52,20 @@ export const updateProduct = async (req, res) => {
 // Eliminar un producto existente
 export const deleteProduct = async (req, res) => {
   try {
-    const { id } = req.params;
-    const products = await productModel.getAll();
-    const filteredProducts = products.filter(p => p.id !== parseInt(id));
 
-    if (filteredProducts.length === products.length) {
+    const { id } = req.params;
+
+    const result = await Product.deleteOne({ _id: id });
+
+    if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'Producto no encontrado' });
     }
 
-    // Guardar el array actualizado
-    await productModel.save(filteredProducts);
-    res.json({ message: 'Producto eliminado' });
+    res.json({
+      message: 'Producto eliminado correctamente',
+      deletedCount: result.deletedCount
+    });
+
   } catch (err) {
     res.status(500).json({ message: 'Error al eliminar el producto' });
   }
