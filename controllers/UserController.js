@@ -1,6 +1,5 @@
 import User from "../models/Users.js";
 import passport from "passport";
-import bcrypt from 'bcrypt';
 
 // Controlador para realizar login de usuario y modificar el json correspondiente
 

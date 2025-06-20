@@ -1,4 +1,4 @@
-import lostPet from "../classes/lostPets.js";
+import lostPet from "../classes/LostPets.js";
 
 const lostpetModel = new lostPet();
 
