@@ -1,8 +1,5 @@
-import Appointment from '../classes/Appointment.js';
-import Pet from '../classes/Pet.js';
-
-const appointmentModel = new Appointment();
-const petModel = new Pet();
+import Appointment from '../models/Appointments.js'; 
+import Pet from '../models/Pets.js';
 
 const generateTimeSlots = (date) => {
     const slots = [];
@@ -16,19 +13,15 @@ const generateTimeSlots = (date) => {
 
 export const listAppointments = async (req, res) => {
     try {
-        const appointments = await appointmentModel.getAll();
-        const pets = await petModel.getAll();
+        const appointments = await Appointment.find({}).populate('petId').sort({ dateTime: 1 });
 
-        const appointmentsWithPetInfo = appointments.map(appointment => {
-            const pet = pets.find(p => p.id === appointment.petId);
-            return {
-                ...appointment,
-                petName: pet ? pet.name : 'Mascota Desconocida',
-                ownerLastName: pet ? pet.ownerLastName : 'Dueño Desconocido'
-            };
-        });
+        const appointmentsForRender = appointments.map(appointment => ({
+            ...appointment.toObject(),
+            petName: appointment.petId ? appointment.petId.name : 'Mascota Desconocida',
+            ownerLastName: appointment.petId ? appointment.petId.ownerLastName : 'Dueño Desconocido'
+        }));
 
-        res.render('appointmentList', { appointments: appointmentsWithPetInfo });
+        res.render('appointmentList', { appointments: appointmentsForRender });
     } catch (err) {
         console.error('Error al obtener la lista de turnos:', err);
         res.status(500).send('Error al obtener la lista de turnos');
@@ -37,11 +30,12 @@ export const listAppointments = async (req, res) => {
 
 export const showAddAppointmentForm = async (req, res) => {
     try {
+        const pets = await Pet.find({});
         const today = new Date();
         const todaySlots = generateTimeSlots(today);
 
         res.render('addAppointmentForm', {
-            pets: [],
+            pets: pets,
             initialDate: today.toISOString().split('T')[0],
             timeSlots: todaySlots
         });
@@ -54,20 +48,15 @@ export const showAddAppointmentForm = async (req, res) => {
 export const searchPets = async (req, res) => {
     const { name, ownerLastName } = req.query;
     try {
-        const pets = await petModel.getAll();
-        let filteredPets = pets;
-
+        const query = {};
         if (name) {
-            filteredPets = filteredPets.filter(p =>
-                p.name.toLowerCase().includes(name.toLowerCase())
-            );
+            query.name = { $regex: name, $options: 'i' };
         }
         if (ownerLastName) {
-            filteredPets = filteredPets.filter(p =>
-                p.ownerLastName.toLowerCase().includes(ownerLastName.toLowerCase())
-            );
+            query.ownerLastName = { $regex: ownerLastName, $options: 'i' };
         }
 
+        const filteredPets = await Pet.find(query);
         res.json(filteredPets);
     } catch (err) {
         console.error('Error al buscar mascotas:', err);
@@ -93,14 +82,21 @@ export const getAvailableTimeSlots = async (req, res) => {
         }
 
         const allSlotsForDay = generateTimeSlots(selectedDate);
-        const existingAppointments = await appointmentModel.getAll();
+
+        const startOfDay = new Date(selectedDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(selectedDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const existingAppointments = await Appointment.find({
+            dateTime: {
+                $gte: startOfDay,
+                $lte: endOfDay
+            }
+        });
 
         const bookedSlots = existingAppointments
-            .filter(appt => {
-                const apptDate = new Date(appt.dateTime);
-                return apptDate.toISOString().split('T')[0] === date;
-            })
-            .map(appt => new Date(appt.dateTime).toISOString());
+            .map(appt => appt.dateTime.toISOString());
         const availableSlots = allSlotsForDay.filter(slot =>
             !bookedSlots.includes(slot)
         );
@@ -114,16 +110,13 @@ export const getAvailableTimeSlots = async (req, res) => {
 
 export const addAppointment = async (req, res) => {
     try {
-        const appointments = await appointmentModel.getAll();
         const { petId, dateTime, serviceType, details } = req.body;
 
         if (!petId || !dateTime || !serviceType) {
             return res.status(400).send('Faltan datos obligatorios para el turno (Mascota, Fecha/Hora, Tipo de Servicio).');
         }
 
-        const parsedPetId = parseInt(petId);
-        const pets = await petModel.getAll();
-        const existingPet = pets.find(p => p.id === parsedPetId);
+        const existingPet = await Pet.findById(petId);
         if (!existingPet) {
             return res.status(404).send('La mascota con el ID proporcionado no existe.');
         }
@@ -136,37 +129,35 @@ export const addAppointment = async (req, res) => {
             return res.status(400).send('Horario no válido. Los turnos son de Lunes a Viernes, de 10:00 a 18:00 (turnos de hora en punto).');
         }
 
-        const existingAppointments = await appointmentModel.getAll();
-        const isSlotBooked = existingAppointments.some(appt => appt.dateTime === dateTime);
+        const isSlotBooked = await Appointment.findOne({ dateTime: requestedDateTime });
         if (isSlotBooked) {
             return res.status(409).send('Este turno ya está ocupado. Por favor, seleccione otro horario.');
         }
 
-        const id = appointments.length > 0 ? Math.max(...appointments.map(a => a.id)) + 1 : 1;
-
-        const newAppointment = new Appointment(
-            id,
-            parsedPetId,
-            dateTime,
+        const newAppointment = new Appointment({
+            petId: existingPet._id,
+            dateTime: requestedDateTime,
             serviceType,
-            details ? details.substring(0, 300) : ''
-        );
+            details: details ? details.substring(0, 300) : ''
+        });
 
-        appointments.push(newAppointment);
-        await appointmentModel.save(appointments);
+        await newAppointment.save();
         res.redirect('/appointments');
     } catch (err) {
+        if (err.name === 'ValidationError') {
+            const messages = Object.values(err.errors).map(val => val.message);
+            return res.status(400).json({ message: messages.join(', ') });
+        }
         console.error('Error al agendar el turno:', err);
         res.status(500).send('Error al agendar el turno');
     }
 };
 
-
 export const getAppointmentById = async (req, res) => {
     try {
         const { id } = req.params;
-        const appointments = await appointmentModel.getAll();
-        const appointment = appointments.find(a => a.id === parseInt(id));
+
+        const appointment = await Appointment.findById(id).populate('petId');
 
         if (!appointment) {
             return res.status(404).json({ message: 'Turno no encontrado' });
@@ -174,6 +165,9 @@ export const getAppointmentById = async (req, res) => {
         res.json(appointment);
     } catch (err) {
         console.error('Error al buscar turno por ID:', err);
+        if (err.name === 'CastError') {
+            return res.status(400).json({ message: 'Formato de ID de turno inválido.' });
+        }
         res.status(500).send('Error al buscar turno');
     }
 };
@@ -182,21 +176,21 @@ export const updateAppointment = async (req, res) => {
     try {
         const { id } = req.params;
         const { petId, dateTime, serviceType, details, status } = req.body;
-        const appointments = await appointmentModel.getAll();
-        const appointmentIndex = appointments.findIndex(a => a.id === parseInt(id));
 
-        if (appointmentIndex === -1) {
-            return res.status(404).json({ message: 'Turno no encontrado para actualizar' });
-        }
+        const updatedFields = {
+            serviceType,
+            details: details !== undefined ? details.substring(0, 300) : undefined,
+            status
+        };
 
         if (petId) {
-            const pets = await petModel.getAll();
-            const existingPet = pets.find(p => p.id === parseInt(petId));
+            const existingPet = await Pet.findById(petId);
             if (!existingPet) {
                 return res.status(404).send('La nueva mascota con el ID proporcionado no existe.');
             }
+            updatedFields.petId = existingPet._id;
         }
-        
+
         if (dateTime) {
             const requestedDateTime = new Date(dateTime);
             const dayOfWeek = requestedDateTime.getDay();
@@ -206,27 +200,41 @@ export const updateAppointment = async (req, res) => {
                 return res.status(400).send('Horario de actualización no válido. Los turnos son de Lunes a Viernes, de 10:00 a 18:00 (turnos de hora en punto).');
             }
             
-            const existingAppointments = await appointmentModel.getAll();
-            const isSlotBookedByOther = existingAppointments.some(appt => 
-                appt.dateTime === dateTime && appt.id !== parseInt(id)
-            );
+            const isSlotBookedByOther = await Appointment.findOne({
+                dateTime: requestedDateTime,
+                _id: { $ne: id }
+            });
             if (isSlotBookedByOther) {
                 return res.status(409).send('Este horario ya está ocupado por otro turno.');
             }
+            updatedFields.dateTime = requestedDateTime;
         }
 
-        appointments[appointmentIndex] = {
-            ...appointments[appointmentIndex],
-            petId: petId ? parseInt(petId) : appointments[appointmentIndex].petId,
-            dateTime: dateTime || appointments[appointmentIndex].dateTime,
-            serviceType: serviceType || appointments[appointmentIndex].serviceType,
-            details: details !== undefined ? details.substring(0, 300) : appointments[appointmentIndex].details,
-            status: status || appointments[appointmentIndex].status
-        };
+        Object.keys(updatedFields).forEach(key => {
+            if (updatedFields[key] === undefined) {
+                delete updatedFields[key];
+            }
+        });
 
-        await appointmentModel.save(appointments);
-        res.json({ message: 'Turno actualizado exitosamente', appointment: appointments[appointmentIndex] });
+        const appointment = await Appointment.findByIdAndUpdate(
+            id,
+            updatedFields,
+            { new: true, runValidators: true }
+        ).populate('petId');
+
+        if (!appointment) {
+            return res.status(404).json({ message: 'Turno no encontrado para actualizar' });
+        }
+
+        res.json({ message: 'Turno actualizado exitosamente', appointment });
     } catch (err) {
+        if (err.name === 'ValidationError') {
+            const messages = Object.values(err.errors).map(val => val.message);
+            return res.status(400).json({ message: messages.join(', ') });
+        }
+        if (err.name === 'CastError') {
+            return res.status(400).json({ message: 'Formato de ID de turno inválido.' });
+        }
         console.error('Error al actualizar el turno:', err);
         res.status(500).json({ message: 'Error al actualizar el turno' });
     }
@@ -235,16 +243,18 @@ export const updateAppointment = async (req, res) => {
 export const deleteAppointment = async (req, res) => {
     try {
         const { id } = req.params;
-        const appointments = await appointmentModel.getAll();
-        const filteredAppointments = appointments.filter(a => a.id !== parseInt(id));
 
-        if (filteredAppointments.length === appointments.length) {
+        const appointment = await Appointment.findByIdAndDelete(id);
+
+        if (!appointment) {
             return res.status(404).json({ message: 'Turno no encontrado para eliminar' });
         }
 
-        await appointmentModel.save(filteredAppointments);
         res.json({ message: 'Turno eliminado exitosamente' });
     } catch (err) {
+        if (err.name === 'CastError') {
+            return res.status(400).json({ message: 'Formato de ID de turno inválido.' });
+        }
         console.error('Error al eliminar el turno:', err);
         res.status(500).json({ message: 'Error al eliminar el turno' });
     }
