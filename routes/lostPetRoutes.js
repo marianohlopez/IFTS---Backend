@@ -9,7 +9,7 @@ router.get('/', listLostPets);
 
 router.get('/:id', getLostPetById);
 
-router.post('/add', addLostPet);
+router.post('/', addLostPet);
 
 router.put('/:id', updateLostPet);
 
