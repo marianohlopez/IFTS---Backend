@@ -17,22 +17,16 @@ export const listLostPets = async (req, res) => {
 
         const lostPets = await LostPet.find(queryFilter).populate('reportedBy', 'username').sort({ createdAt: -1 });
 
-        res.status(200).json({ status: 'success', payload: lostPets }); // Temporal hasta que esté el .pug
-        //res.render('lostPetList', { listPets }); // Revisar vista Pug
+        res.render('lostPetList', { lostPets });
     } catch (err) {
         console.error('Error al listar mascotas perdidas:', err);
-        res.status(500).json({ status: 'error', message: 'Error interno al obtener la lista de mascotas' }); // Temporal hasta que esté el .pug
-        //res.status(500).send('Error al obtener la lista de mascotas');  Revisar vista Pug
+        res.status(500).send('Error al obtener la lista de mascotas');
     }
 };
 
 export const addLostPet = async (req, res) => {
-
-    //console.log("1. Entrando a la función addLostPet");
-
     try {
         const petDataFromForm = req.body;
-        //console.log("2. Datos recibidos del body (formulario/ThunderClient):", petDataFromForm);
 
         if (!req.user || !req.user._id) {
             console.error("ERROR CRÍTICO: req.user no está definido o no tiene _id. No se puede continuar.");
@@ -40,30 +34,22 @@ export const addLostPet = async (req, res) => {
         }
 
         const userId = req.user._id;
-        //console.log("3. ID del usuario logueado:", userId);
 
         const newPetData = {
             ...petDataFromForm,
             reportedBy: userId
         };
-        //console.log("4. Objeto final a guardar en la base de datos:", newPetData);
 
-        //console.log("5. Intentando crear el documento con Mongoose...");
         const newLostPet = await LostPet.create(newPetData);
-        //console.log("6. ¡ÉXITO! Documento creado en MongoDB:", newLostPet);
 
-        res.status(201).json({ status: 'success', message: 'Reporte creado exitosamente', payload: newLostPet }); // Temporal hasta que esté el .pug
-        //res.redirect('/lostpets'); // Revisar vista Pug
+        res.redirect('/lostpets');
     } catch (err) {
-        //console.error("¡ERROR! Algo falló dentro del try-catch de addLostPet.");
         console.error('Error al agregar mascota perdida:', err);
         
         if (err.name === 'ValidationError') {
-            return res.status(400).json({ status: 'error', message: 'Datos inválidos: ' + err.message });
-            //return res.status(400).send('Error de validación: ' + err.message);
+            return res.status(400).send('Error de validación: ' + err.message);
         }
-        res.status(500).json({ status: 'error', message: 'Error interno al agregar la mascota' });
-        //res.status(500).send('Error interno al agregar la mascota');
+        res.status(500).send('Error interno al agregar la mascota');
     }
 };
 
@@ -73,20 +59,16 @@ export const getLostPetById = async (req, res) => {
         const lostPet = await LostPet.findById(id).populate('reportedBy', 'username');
 
         if (!lostPet) {
-            return res.status(404).json({ status: 'error', message: 'Reporte de mascota no encontrado' });
-            //return res.status(404).send('Reporte de mascota no encontrado'); Revisar pug
+            return res.status(404).send('Reporte de mascota no encontrado');
         }
 
-        res.status(200).json({ status: 'success', payload: lostPet }); //Temporal hasta que esté el .pug
-        //res.render('lostPetDetail', { pet: lostPet }); Revisar pug
+        res.render('lostPetDetail', { pet: lostPet });
     } catch (err) {
         console.error('Error al obtener el reporte por ID', err);
         if (err.name === 'CastError') {
-            return res.status(400).json({ status: 'error', message: 'El formato del ID es inválido' }); //Temporal hasta que esté el .pug
-            //return res.status(400).send('El formato del ID es inválido.'); Revisar pug
+            return res.status(400).send('El formato del ID es inválido.');
         }
-        res.status(500).json({ status: 'error', message: 'Error interno al obtener el reporte' }); //Temporal hasta que esté el .pug
-        //res.status(500).send('Error interno al obtener el reporte.'); Revisar pug
+        res.status(500).send('Error interno al obtener el reporte.');
     }
 };
 
@@ -97,8 +79,7 @@ export const updateLostPet = async (req, res) => {
         
         const petToUpdate = await LostPet.findById(id);
         if (!petToUpdate) {
-            return res.status(404).json({ status: 'error', message: 'Reporte no encontrado para actualizar' }); //Temporal hasta que esté el .pug
-            //return res.status(404).send('Reporte no encontrado para actualizar.'); Revisar pug
+            return res.status(404).send('Reporte no encontrado para actualizar.');
         }
 
         const updatedPet = await LostPet.findByIdAndUpdate(id, updateData, {
@@ -106,16 +87,13 @@ export const updateLostPet = async (req, res) => {
             runValidators: true
         });
 
-        res.status(200).json({ status: 'success', message: 'Reporte actualizado exitosamente', payload: updatedPet }); //Temporal hasta que esté el .pug
-        //res.redirect(`/lostpets/${id}`); Revisar pug
+        res.redirect('/lostpets');
     } catch (err) {
         console.error('Error al actualizar el reporte: ', err);
         if (err.name === 'ValidationError' || err.name === 'CastError') {
-            return res.status(400).json({ status: 'error', message: 'Datos inválidos o formato de ID incorrecto: ' + err.message }); //Temporal hasta que esté el .pug
-            //return res.status(400).send('Error de validación o formato de ID inválido: ' + err.message); Revisar pug
+            return res.status(400).send('Error de validación o formato de ID inválido: ' + err.message);
         }
-        res.status(500).json({ status: 'error', message: 'Error interno al actualizar el reporte' });//Temporal hasta que esté el .pug
-        // res.status(500).send('Error interno al actualizar el reporte.'); Revisar pug
+        res.status(500).send('Error interno al actualizar el reporte.');
     }
 };
 
@@ -125,21 +103,42 @@ export const deleteLostPet = async (req, res) => {
         const petToDelete = await LostPet.findById(id);
 
         if (!petToDelete) {
-            return res.status(404).json({ status: 'error', message: 'Reporte no encontrado para eliminar' }); //Temporal hasta que esté el .pug
-            //return res.status(404).send('Reporte no encontrado para eliminar.'); Revisar pug
+            return res.status(404).send('Reporte no encontrado para eliminar.');
         }
 
         await LostPet.findByIdAndDelete(id);
 
-        res.status(200).json({ status: 'success', message: 'Reporte eliminado exitosamente' }); //Temporal hasta que esté el .pug
-        // res.redirect('/lostpets'); Revisar pug
+        
+        res.redirect('/lostpets');
     } catch (err) {
         console.error('Error al eliminar el reporte: ', err);
         if (err.name === 'CastError') {
-            return res.status(400).json({ status: 'error', message: 'El formato del ID es inválido' }); //Temporal hasta que esté el .pug
-            // return res.status(400).send('El formato del ID es inválido.'); Revisar pug
+            
+            return res.status(400).send('El formato del ID es inválido.');
         }
-        res.status(500).json({ status: 'error', message: 'Error interno al eliminar el reporte' }); //Temporal hasta que esté el .pug
-        // res.status(500).send('Error interno al eliminar el reporte.'); Revisar pug
+        res.status(500).send('Error interno al eliminar el reporte.');
+    }
+};
+
+export const showEditorForm = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const pet = await LostPet.findById(id).lean();
+
+        if (!pet) {
+            return res.status(404).send('Reporte no encontrado');
+        }
+
+        // En caso de que se avance con la funcionalidad para que los dueños de mascotas puedan registrar mascotas perdidas, solo podrá editar el reporte el mismo usuario que la registró
+        // if (pet.reportedBy.toString() !== req.user._id.toString()) {
+        //    return res.status(403).send('No tienes permiso para editar este reporte.');
+        //}
+
+        pet.lastSeenDateFormatted = new Date(pet.lastSeenDate).toISOString().split('T')[0];
+
+        res.render('editLostPetForm', { pet });
+    } catch (error) {
+        console.error("Error al mostrar el formulario de edición:", error);
+        res.status(500).send("Error al cargar la página de edición");
     }
 };

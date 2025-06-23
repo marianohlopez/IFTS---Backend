@@ -1,7 +1,9 @@
 import { Router } from "express";
-import { listLostPets, addLostPet, updateLostPet, deleteLostPet, getLostPetById } from "../controllers/lostPetController.js";
+import { showEditorForm, listLostPets, addLostPet, updateLostPet, deleteLostPet, getLostPetById } from "../controllers/lostPetController.js";
 
 const router = Router();
+
+router.get('/:id/edit', showEditorForm);
 
 router.get('/', listLostPets);
 
