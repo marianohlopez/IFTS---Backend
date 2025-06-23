@@ -1,0 +1,50 @@
+doctype html
+html(lang="es")
+  head
+    title Editar Reporte de Mascota
+
+  body
+    div
+      h1 Editar Reporte ##{pet._id}
+
+      div
+        //- ¡IMPORTANTE! La acción del formulario es un POST a una ruta que manejará la actualización.
+        form(action=`/lostpets/${pet._id}?_method=PUT` method='POST')
+          div
+            label(for='name') Nombre de la Mascota
+            input(type='text' id='name' name='name' value=pet.name)
+          
+          div
+            label(for='species') Especie:
+            input(type='text' id='species' name='species' value=pet.species)
+
+          div
+            label(for='description') Descripción:
+            textarea(id='description' name='description' required rows="3")= pet.description
+
+          div
+            label(for='status') Estado:
+            select(id='status' name='status' required)
+              option(value='perdida' selected=(pet.status === 'perdida')) Perdida
+              option(value='encontrada' selected=(pet.status === 'encontrada')) Encontrada
+          
+          div
+            label(for='lastSeenDate') Fecha (Visto/Encontrado por última vez):
+            input(type='date' id='lastSeenDate' name='lastSeenDate' value=pet.lastSeenDateFormatted required)
+
+          div
+            label(for='lastSeenZone') Zona (Visto/Encontrado por última vez):
+            input(type='text' id='lastSeenZone' name='lastSeenZone' value=pet.lastSeenZone)
+
+          div
+            label(for='contactName') Nombre del contacto (Contacto):
+            input(type='text' id='contactName' name='contactName' value=pet.contactName)
+
+          div
+            label(for='contactPhone') Teléfono del contacto (Contacto):
+            input(type='text' id='contactPhone' name='contactPhone' value=pet.contactPhone)
+
+          div
+            button(type='submit') Guardar Cambios
+        
+        a(href="/lostpets" style="display:inline-block; margin-top:15px;") Volver a la lista

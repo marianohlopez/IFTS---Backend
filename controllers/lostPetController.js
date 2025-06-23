@@ -1,110 +1,144 @@
-import lostPet from "../classes/LostPets.js";
-
-const lostpetModel = new lostPet();
+import LostPet from "../models/LostPet.js";
 
 export const listLostPets = async (req, res) => {
     try {
-        const lostpets = await lostpetModel.getAll();
-        res.json(lostpets);
+        const { species, zone, status } = req.query;
+        const queryFilter = {};
+
+        if (species) {
+            queryFilter.species = { $regex: species, $options: 'i' };
+        }
+        if (zone) {
+            queryFilter.lastSeenZone = { $regex: zone, $options: 'i' };
+        }
+        if (status) {
+            queryFilter.status = status;
+        }
+
+        const lostPets = await LostPet.find(queryFilter).populate('reportedBy', 'username').sort({ createdAt: -1 });
+
+        res.render('lostPetList', { lostPets });
     } catch (err) {
-        console.error('Error fetching lostPets: ', err);
-        res.status(500).send('Error fetching lostPets');
+        console.error('Error al listar mascotas perdidas:', err);
+        res.status(500).send('Error al obtener la lista de mascotas');
     }
 };
 
 export const addLostPet = async (req, res) => {
     try {
-        const lostpets = await lostpetModel.getAll();
-        const { name, species, description, status, lastSeenDate, lastSeenZone, contactName, contactPhone } = req.body;
+        const petDataFromForm = req.body;
 
-        if (!name || !species || !description || !status || !lastSeenDate || !lastSeenZone || !contactName || !contactPhone) {
-            return res.status(400).json({ message: 'Faltan datos generales obligatorios para la mascota perdida.' });
+        if (!req.user || !req.user._id) {
+            console.error("ERROR CRÍTICO: req.user no está definido o no tiene _id. No se puede continuar.");
+            return res.status(401).send('Error de autenticación: no se pudo identificar al usuario.');
         }
 
-        const id = lostpets.length > 0 ? Math.max(...lostpets.map(p => p.id)) + 1 : 1;
+        const userId = req.user._id;
 
-        const newLostPet = new lostPet(
-            id,
-            name,
-            species,
-            description || '',
-            status,
-            lastSeenDate,
-            lastSeenZone,
-            contactName,
-            parseInt(contactPhone)
-        );
+        const newPetData = {
+            ...petDataFromForm,
+            reportedBy: userId
+        };
 
-        lostpets.push(newLostPet);
-        await lostpetModel.save(lostpets);
+        const newLostPet = await LostPet.create(newPetData);
+
         res.redirect('/lostpets');
     } catch (err) {
-        console.error('Error adding lostpet: ', err);
-        res.status(500).send('Error addting lostpet');
+        console.error('Error al agregar mascota perdida:', err);
+        
+        if (err.name === 'ValidationError') {
+            return res.status(400).send('Error de validación: ' + err.message);
+        }
+        res.status(500).send('Error interno al agregar la mascota');
     }
 };
 
 export const getLostPetById = async (req, res) => {
     try {
         const { id } = req.params;
-        const lostpets = await lostpetModel.getAll();
-        const lostpet = lostpets.find(p => p.id === parseInt(id));
+        const lostPet = await LostPet.findById(id).populate('reportedBy', 'username');
 
-        if (!lostpet) {
-            return res.status(404).json({ message: 'Lost pet not found' });
+        if (!lostPet) {
+            return res.status(404).send('Reporte de mascota no encontrado');
         }
-        res.json(lostpet);
+
+        res.render('lostPetDetail', { pet: lostPet });
     } catch (err) {
-        console.error('Error finding lost pet ID', err);
-        res.status(500).send('Error finding lost pet');
+        console.error('Error al obtener el reporte por ID', err);
+        if (err.name === 'CastError') {
+            return res.status(400).send('El formato del ID es inválido.');
+        }
+        res.status(500).send('Error interno al obtener el reporte.');
     }
 };
 
 export const updateLostPet = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, species, description, status, lastSeenDate, lastSeenZone, contactName, contactPhone } = req.body;
-        const lostpets = await lostpetModel.getAll();
-        const lostPetIndex = lostpets.findIndex(p => p.id === parseInt(id));
-
-        if (petIndex === -1) {
-            return res.status(404).json({ message: 'Lost pet not found' });
+        const updateData = req.body;
+        
+        const petToUpdate = await LostPet.findById(id);
+        if (!petToUpdate) {
+            return res.status(404).send('Reporte no encontrado para actualizar.');
         }
 
-        lostpets[lostPetIndex] = {
-            ...lostpets[lostPetIndex],
-            name: name || lostpets[lostPetIndex].name,
-            species: species || lostpets[lostPetIndex].species,
-            description: description !== undefined ? description : lostpets[lostPetIndex].description,
-            status: status || lostpets[lostPetIndex].status,
-            lastSeenDate: lastSeenDate || lostpets[lostPetIndex].lastSeenDate,
-            lastSeenZone: lastSeenZone || lostpets[lostPetIndex].lastSeenZone,
-            contactName: contactName || lostpets[lostPetIndex].contactName,
-            contactPhone: contactPhone ? parseInt(contactPhone) : lostpets[lostPetIndex].contactPhone
-        };
+        const updatedPet = await LostPet.findByIdAndUpdate(id, updateData, {
+            new: true,
+            runValidators: true
+        });
 
-        await lostpetModel.save(lostpets);
-        res.json({ message: 'Lost pet update', lostpet: lostpets[lostPetIndex] });
+        res.redirect('/lostpets');
     } catch (err) {
-        console.error('Error updating lost pet: ', err);
-        res.status(500).json({ message: 'Error update lost pet' });
+        console.error('Error al actualizar el reporte: ', err);
+        if (err.name === 'ValidationError' || err.name === 'CastError') {
+            return res.status(400).send('Error de validación o formato de ID inválido: ' + err.message);
+        }
+        res.status(500).send('Error interno al actualizar el reporte.');
     }
 };
 
 export const deleteLostPet = async (req, res) => {
     try {
         const { id } = req.params;
-        const lostpets = await lostpetModel.getAll();
-        const filteredLostPets = lostpets.filter(p => p.id !== parseInt(id));
+        const petToDelete = await LostPet.findById(id);
 
-        if (filteredLostPets.length === lostpets.length) {
-            return res.status(404).json({ message: 'Lost pet not found' });
+        if (!petToDelete) {
+            return res.status(404).send('Reporte no encontrado para eliminar.');
         }
 
-        await lostpetModel.save(filteredLostPets);
-        res.json({ message: 'Lost pet deleted' });
+        await LostPet.findByIdAndDelete(id);
+
+        
+        res.redirect('/lostpets');
     } catch (err) {
-        console.error('Error deleting lost pet: ', err);
-        res.status(500).json({ message: 'Error deleting lost pet' });
+        console.error('Error al eliminar el reporte: ', err);
+        if (err.name === 'CastError') {
+            
+            return res.status(400).send('El formato del ID es inválido.');
+        }
+        res.status(500).send('Error interno al eliminar el reporte.');
+    }
+};
+
+export const showEditorForm = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const pet = await LostPet.findById(id).lean();
+
+        if (!pet) {
+            return res.status(404).send('Reporte no encontrado');
+        }
+
+        // En caso de que se avance con la funcionalidad para que los dueños de mascotas puedan registrar mascotas perdidas, solo podrá editar el reporte el mismo usuario que la registró
+        // if (pet.reportedBy.toString() !== req.user._id.toString()) {
+        //    return res.status(403).send('No tienes permiso para editar este reporte.');
+        //}
+
+        pet.lastSeenDateFormatted = new Date(pet.lastSeenDate).toISOString().split('T')[0];
+
+        res.render('editLostPetForm', { pet });
+    } catch (error) {
+        console.error("Error al mostrar el formulario de edición:", error);
+        res.status(500).send("Error al cargar la página de edición");
     }
 };

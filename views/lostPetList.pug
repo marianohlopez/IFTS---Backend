@@ -1,0 +1,71 @@
+doctype html
+html(lang="es")
+  head
+    title Reportes de Mascotas Perdidas/Encontradas
+
+  body
+    div
+      form(action='/logout' method='post')
+        button(type='submit') Cerrar sesión
+
+      h1 Gestión de Mascotas Perdidas y Encontradas
+
+      //- Formulario para registrar un nuevo reporte
+      div
+        h2 Registrar Nuevo Reporte
+        //- La acción POST apunta a la raíz de router de lostpets
+        form(action='/lostpets' method='POST')
+          div
+            label(for='name') Nombre de la Mascota (si se conoce): 
+            input(type='text' id='name' name='name' placeholder='Ej: Bobby')
+          div
+            label(for='species') Especie: 
+            input(type='text' id='species' name='species' placeholder='Ej: Perro' required)
+          div
+            label(for='description') Descripción: 
+            textarea(id='description' name='description' placeholder='Color, tamaño, señas particulares, collar, etc.' required rows="3")
+          div
+            label(for='status') Estado: 
+            select(id='status' name='status' placeholder='Perdida o Encontrada' required)
+              option(value='perdida') Perdida
+              option(value='encontrada') Encontrada
+          div
+            label(for='lastSeenDate') Fecha (Visto/Encontrado por última vez): 
+            input(type='date' id='lastSeenDate' name='lastSeenDate' required)
+          div
+            label(for='lastSeenZone') Zona (Visto/Encontrado por última vez): 
+            input(type='text' id='lastSeenZone' name='lastSeenZone' placeholder='Ej: Plaza Irlanda, Caballito' required)
+          div
+            label(for='contactName') Nombre del contacto (Contacto): 
+            input(type='text' id='contactName' name='contactName' placeholder='Nombre y Apellido' required)
+          div
+            label(for='contactPhone') Teléfono del contacto (Contacto): 
+            input(type='tel' id='contactPhone' name='contactPhone' placeholder='1122334455' required)
+          div
+            button(type='submit') Crear Reporte
+
+      //- Sección para listar los reportes existentes
+      div
+        h2 Listado de Reportes
+        
+        if lostPets && lostPets.length > 0
+          each pet, index in lostPets
+            div
+              p #[strong Nombre:] #{pet.name || 'No especificado'}
+              p #[strong Especie:] #{pet.species}
+              p #[strong Estado:] #{pet.status}
+              p #[strong Visto en:] #{pet.lastSeenZone}
+              p #[strong Fecha:] #{new Date(pet.lastSeenDate).toLocaleDateString('es-AR')}
+              p #[strong Descripción:] #{pet.description}
+              //-p #[strong Reportado por:] #{pet.reportedBy ? pet.reportedBy.username : 'Usuario desconocido'}
+              p #[strong Contacto:] #{pet.contactName} - #{pet.contactPhone}
+              //-Botón para editar registro
+              a(href=`/lostpets/${pet._id}/edit` class="btn-edit" style="text-decoration: none; background-color: #ffc107; color: black; padding: 5px 10px; border-radius: 4px; font-size: 14px; margin-right: 10px;") Editar
+              //-Botón para eliminar registro
+              form(action=`/lostpets/${pet._id}?_method=DELETE` method="POST" style="display: inline;" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este reporte?');")
+                button(type="submit" class="btn-delete" style="background-color: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer;") Eliminar
+            if index < lostPets.length - 1
+                p ------------------------------------------------------------------
+                hr(style="border: 0; border-top_ 1px solid #ddd; margin: 20px 0;")
+        else
+          p No hay reportes de mascotas perdidas o encontradas aún.

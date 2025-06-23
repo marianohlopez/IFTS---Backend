@@ -11,6 +11,7 @@ import { petRouter } from "./routes/petRoutes.js";
 import { isLoggedIn } from "./middlewares/auth.js";
 import { appointmentRouter } from "./routes/appointmentRoutes.js";
 import { lostPetRouter } from "./routes/lostPetRoutes.js";
+import methodOverride from 'method-override';
 
 dotenv.config(); //Inicializacion de variables de entorno
 
@@ -54,6 +55,7 @@ passport.deserializeUser(async (id, done) => {
 
 // Configuracion del motor de vistas
 app.set('view engine', 'pug');
+app.use(methodOverride('_method'));
 
 // Redireccionamiento a las url con sus correspondientes rutas
 app.use('/', loginRouter);
